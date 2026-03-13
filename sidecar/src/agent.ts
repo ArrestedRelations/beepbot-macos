@@ -124,7 +124,7 @@ export class Agent {
     sandboxEnabled = true,
   ) {
     this.db = db;
-    this.model = model || 'opus';
+    this.model = model || 'sonnet';
     this.permissionMode = permissionMode;
     this.sandboxEnabled = sandboxEnabled;
 
