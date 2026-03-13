@@ -1,0 +1,113 @@
+@import "tailwindcss";
+@source ".";
+
+:root {
+  --bb-bg: #12141a;
+  --bb-bg-accent: #14161d;
+  --bb-bg-elevated: #1a1d25;
+  --bb-bg-card: #181b22;
+  --bb-bg-card-highlight: rgba(255, 255, 255, 0.05);
+  --bb-bg-card-hover: rgba(255, 255, 255, 0.03);
+  --bb-text: #e4e4e7;
+  --bb-text-strong: #fafafa;
+  --bb-text-muted: #71717a;
+  --bb-text-faint: #52525b;
+  --bb-border: #27272a;
+  --bb-border-strong: #3f3f46;
+  --bb-accent: #3b82f6;
+  --bb-accent-hover: #2563eb;
+  --bb-accent-subtle: rgba(59, 130, 246, 0.1);
+  --bb-accent-muted: rgba(59, 130, 246, 0.06);
+  --bb-ok: #22c55e;
+  --bb-warn: #f59e0b;
+  --bb-danger: #ef4444;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --bb-sidebar-w: 220px;
+  --bb-topbar-h: 56px;
+}
+
+body {
+  overflow: hidden;
+  background: var(--bb-bg);
+  color: var(--bb-text);
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bb-border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #52525b; }
+
+@keyframes bb-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bb-pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+  50% { box-shadow: 0 0 6px 2px rgba(34, 197, 94, 0.2); }
+}
+
+.bb-rise { animation: bb-rise 0.35s ease-out both; }
+.bb-stagger-1 { animation-delay: 0ms; }
+.bb-stagger-2 { animation-delay: 50ms; }
+.bb-stagger-3 { animation-delay: 100ms; }
+.bb-stagger-4 { animation-delay: 150ms; }
+
+.bb-card {
+  background: var(--bb-bg-card);
+  border: 1px solid var(--bb-border);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), inset 0 1px 0 var(--bb-bg-card-highlight);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.bb-card:hover { border-color: var(--bb-border-strong); }
+
+.bb-stat-label {
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--bb-text-muted);
+}
+.bb-stat-value {
+  font-size: 24px; font-weight: 700; letter-spacing: -0.02em;
+  color: var(--bb-text-strong); line-height: 1.2;
+}
+
+.bb-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 500; padding: 3px 10px;
+  border-radius: 9999px; border: 1px solid var(--bb-border);
+  background: var(--bb-bg-elevated);
+}
+
+.bb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.bb-dot-ok { background: var(--bb-ok); box-shadow: 0 0 6px rgba(34, 197, 94, 0.4); animation: bb-pulse-glow 2s ease-in-out infinite; }
+.bb-dot-warn { background: var(--bb-warn); box-shadow: 0 0 6px rgba(245, 158, 11, 0.3); }
+.bb-dot-danger { background: var(--bb-danger); box-shadow: 0 0 6px rgba(239, 68, 68, 0.3); }
+.bb-dot-muted { background: #52525b; }
+
+.bb-nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+  border-radius: 8px; font-size: 13px; font-weight: 500;
+  color: var(--bb-text-muted); transition: background 0.12s, color 0.12s;
+  cursor: pointer; user-select: none; border: none; background: none;
+  width: 100%; text-align: left;
+}
+.bb-nav-item:hover { background: var(--bb-bg-card-hover); color: var(--bb-text); }
+.bb-nav-item-active { background: var(--bb-accent-subtle); color: var(--bb-accent); }
+.bb-nav-item-active:hover { background: var(--bb-accent-subtle); color: var(--bb-accent); }
+
+.bb-page-title {
+  font-size: 22px; font-weight: 700; letter-spacing: -0.03em; color: var(--bb-text-strong);
+}
+.bb-card-title {
+  font-size: 12px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--bb-text-muted); margin-bottom: 16px;
+}
+.bb-empty { font-size: 13px; color: var(--bb-text-faint); text-align: center; padding: 24px 0; }
+.bb-section-title {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--bb-text-faint); padding: 0 12px; margin-bottom: 4px;
+}
