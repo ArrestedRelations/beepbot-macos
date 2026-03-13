@@ -8,12 +8,13 @@ import { getDataDir } from './db.js';
 import { getMemoryContext } from './memory.js';
 import { buildWorkspaceContext } from './workspace.js';
 import { buildSkillsContext } from './skills.js';
-import { 
-  heuristicWorthRemembering, 
-  extractMemories, 
+import {
+  heuristicWorthRemembering,
+  extractMemories,
   writeMemories,
-  buildSmartContext 
+  buildSmartContext
 } from './memory-system.js';
+import { logUsage } from './usage-tracker.js';
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
@@ -113,6 +114,7 @@ export class Agent {
 
   /** Store last user message for memory extraction */
   private lastUserMessage = '';
+  private turnStartedAt = 0;
 
   constructor(
     db: Database.Database,
@@ -428,6 +430,20 @@ Complete the task efficiently. Be autonomous — don't ask questions, just build
           }});
         }
         if (subtype === 'task_notification') {
+          // Log sub-agent cumulative usage (coder, executor, etc.)
+          const saUsage = m.usage as { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } | undefined;
+          if (saUsage && (saUsage.input_tokens || saUsage.output_tokens)) {
+            logUsage(this.db, {
+              model: this.model,
+              inputTokens: saUsage.input_tokens ?? 0,
+              outputTokens: saUsage.output_tokens ?? 0,
+              conversationId: this.conversationId,
+              slot: 'sub_agent',
+              cacheReadTokens: saUsage.cache_read_input_tokens ?? 0,
+              cacheWriteTokens: saUsage.cache_creation_input_tokens ?? 0,
+            });
+          }
+
           this.onEvent?.({ type: 'sub_agent', data: {
             event: 'completed',
             taskId: m.task_id as string,
@@ -491,10 +507,16 @@ Complete the task efficiently. Be autonomous — don't ask questions, just build
             this.model,
           );
 
-          this.db.prepare(
-            `INSERT INTO api_usage_log (conversation_id, provider, model, slot, tokens_in, tokens_out, cache_read_tokens, cache_write_tokens)
-             VALUES (?, 'anthropic', ?, 'chat', ?, ?, ?, ?)`
-          ).run(this.conversationId, this.model, tokensIn, tokensOut, cacheReadTokens, cacheWriteTokens);
+          logUsage(this.db, {
+            model: this.model,
+            inputTokens: tokensIn,
+            outputTokens: tokensOut,
+            conversationId: this.conversationId,
+            slot: 'chat',
+            cacheReadTokens,
+            cacheWriteTokens,
+            durationMs: this.turnStartedAt > 0 ? Date.now() - this.turnStartedAt : 0,
+          });
 
           this.db.prepare(
             "UPDATE conversations SET updated_at = datetime('now') WHERE id = ?"
@@ -565,6 +587,7 @@ Complete the task efficiently. Be autonomous — don't ask questions, just build
     this.responseText = '';
     this.toolCalls = [];
     this.thinkingText = '';
+    this.turnStartedAt = Date.now();
 
     return new Promise<string>((resolve, reject) => {
       this.chatTimeoutReject = reject;
@@ -746,8 +769,21 @@ Keep the summary under 2000 characters. Be factual and specific.`,
             }
           }
         }
-        if (m.type === 'result' && !result && typeof m.result === 'string') {
-          result = m.result;
+        if (m.type === 'result') {
+          if (!result && typeof m.result === 'string') {
+            result = m.result;
+          }
+          // Log compaction usage
+          const usage = m.usage as { input_tokens?: number; output_tokens?: number } | undefined;
+          if (usage) {
+            logUsage(this.db, {
+              model: 'haiku',
+              inputTokens: usage.input_tokens ?? 0,
+              outputTokens: usage.output_tokens ?? 0,
+              conversationId: this.conversationId,
+              slot: 'compaction',
+            });
+          }
         }
       }
     } catch {

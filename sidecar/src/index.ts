@@ -21,6 +21,7 @@ import { listSkills } from './skills.js';
 import { FileWatcher } from './file-watcher.js';
 import { initIdentity, getIdentity } from './identity.js';
 import { NetworkManager } from './network/index.js';
+import { logUsage } from './usage-tracker.js';
 
 // WebSocket client type
 interface WsClient { send: (data: string) => void }
@@ -553,6 +554,88 @@ app.get('/api/dashboard/stats', async () => {
     agentStatus: chatRunning ? 'running' : 'idle',
     runtimeConnected: agentIPC.isConnected(),
   };
+});
+
+// --- Usage API ---
+app.get('/api/usage', async () => {
+  const usageToday = db.prepare(`
+    SELECT COALESCE(SUM(tokens_in), 0) as tokens_in, COALESCE(SUM(tokens_out), 0) as tokens_out,
+           COUNT(*) as api_calls
+    FROM api_usage_log WHERE created_at >= date('now')
+  `).get() as { tokens_in: number; tokens_out: number; api_calls: number };
+
+  const usageTotal = db.prepare(`
+    SELECT COALESCE(SUM(tokens_in), 0) as tokens_in, COALESCE(SUM(tokens_out), 0) as tokens_out,
+           COUNT(*) as api_calls
+    FROM api_usage_log
+  `).get() as { tokens_in: number; tokens_out: number; api_calls: number };
+
+  const usageByDay = db.prepare(`
+    SELECT date(created_at) as day,
+           COALESCE(SUM(tokens_in), 0) as tokens_in,
+           COALESCE(SUM(tokens_out), 0) as tokens_out,
+           COUNT(*) as api_calls
+    FROM api_usage_log
+    WHERE created_at >= date('now', '-14 days')
+    GROUP BY date(created_at)
+    ORDER BY day ASC
+  `).all();
+
+  const usageByModel = db.prepare(`
+    SELECT model,
+           COALESCE(SUM(tokens_in), 0) as tokens_in,
+           COALESCE(SUM(tokens_out), 0) as tokens_out,
+           COUNT(*) as api_calls
+    FROM api_usage_log
+    GROUP BY model
+    ORDER BY api_calls DESC
+  `).all();
+
+  const activeSessions = (db.prepare(`
+    SELECT COUNT(DISTINCT conversation_id) as cnt
+    FROM api_usage_log WHERE created_at >= date('now')
+  `).get() as { cnt: number }).cnt;
+
+  return {
+    totalTokens: usageTotal.tokens_in + usageTotal.tokens_out,
+    totalCost: 0, // cost is estimated client-side from model pricing
+    byModel: usageByModel,
+    byDay: usageByDay,
+    activeSessions,
+    usageToday,
+    usageTotal,
+    usageByDay,
+    usageByModel,
+  };
+});
+
+app.post('/api/usage/log', async (req) => {
+  const { model, provider, tokens_in, tokens_out, conversation_id, slot, cache_read_tokens, cache_write_tokens, duration_ms } = req.body as {
+    model: string;
+    provider?: string;
+    tokens_in?: number;
+    tokens_out?: number;
+    conversation_id?: string;
+    slot?: string;
+    cache_read_tokens?: number;
+    cache_write_tokens?: number;
+    duration_ms?: number;
+  };
+  if (!model) return { error: 'Missing model' };
+
+  logUsage(db, {
+    model,
+    inputTokens: tokens_in ?? 0,
+    outputTokens: tokens_out ?? 0,
+    conversationId: conversation_id,
+    slot: slot ?? 'chat',
+    provider: provider ?? 'anthropic',
+    cacheReadTokens: cache_read_tokens ?? 0,
+    cacheWriteTokens: cache_write_tokens ?? 0,
+    durationMs: duration_ms ?? 0,
+  });
+
+  return { ok: true };
 });
 
 // --- Dashboard Activity Feed ---

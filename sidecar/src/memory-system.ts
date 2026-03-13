@@ -4,6 +4,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import os from 'os';
 import { extractOAuthToken } from './auth.js';
+import { logUsage } from './usage-tracker.js';
 
 // Resolve paths lazily to avoid circular dependency with db.ts
 const DATA_DIR = join(os.homedir(), '.beepbot-v2');
@@ -33,8 +34,14 @@ export interface StoredMemory {
   created_at: string;
 }
 
+interface HaikuResponse {
+  text: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
 /** Make a cheap Haiku API call using the OAuth token as x-api-key */
-async function callHaiku(oauthToken: string, systemPrompt: string, userMessage: string): Promise<string> {
+async function callHaiku(oauthToken: string, systemPrompt: string, userMessage: string): Promise<HaikuResponse> {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -56,9 +63,16 @@ async function callHaiku(oauthToken: string, systemPrompt: string, userMessage: 
     throw new Error(`Haiku API error ${response.status}: ${errorText.slice(0, 200)}`);
   }
 
-  const data = await response.json() as { content: Array<{ type: string; text?: string }> };
+  const data = await response.json() as {
+    content: Array<{ type: string; text?: string }>;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
   const textBlock = data.content?.find(b => b.type === 'text');
-  return textBlock?.text || '';
+  return {
+    text: textBlock?.text || '',
+    inputTokens: data.usage?.input_tokens ?? 0,
+    outputTokens: data.usage?.output_tokens ?? 0,
+  };
 }
 
 /** Initialize memory tables in the SQLite database */
@@ -193,7 +207,15 @@ Only output FACT lines. No other text.`;
       'You are a memory extraction system. Extract only durable, important facts from conversations. Be precise and concise. Output only FACT lines in the specified format.',
       extractionPrompt
     );
-    return parseFactLines(result);
+
+    logUsage(db, {
+      model: 'claude-3-haiku-20240307',
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      slot: 'memory_extraction',
+    });
+
+    return parseFactLines(result.text);
   } catch (err) {
     console.warn('[memory] Haiku extraction failed:', err instanceof Error ? err.message : err);
     return [];
@@ -487,9 +509,16 @@ export async function runDailySynthesis(db: Database.Database): Promise<void> {
         `Synthesize yesterday's activity:\n\n${synthesisInput}`
       );
 
+      logUsage(db, {
+        model: 'claude-3-haiku-20240307',
+        inputTokens: synthResult.inputTokens,
+        outputTokens: synthResult.outputTokens,
+        slot: 'daily_synthesis',
+      });
+
       // Parse and write synthesis results
       const fs = await import('fs');
-      const sections = parseSynthesisSections(synthResult);
+      const sections = parseSynthesisSections(synthResult.text);
 
       if (sections.durableFacts.length > 0) {
         const memoryPath = join(getWorkspaceDir(), 'MEMORY.md');
