@@ -636,6 +636,10 @@ app.put('/api/memory/:filename', async (req) => {
 });
 
 // --- System Health ---
+app.get('/api/system/project-path', async () => {
+  return { ok: true, path: join(process.cwd(), '..') };
+});
+
 app.get('/api/system/health', async () => {
   let dbSize = 0;
   try {
@@ -1068,7 +1072,7 @@ app.post('/api/github/pull', async () => {
 
 app.post('/api/github/push', async () => {
   try {
-    const { stdout, stderr } = await gitExec(['push'], true);
+    const { stdout, stderr } = await gitExec(['push', '-u', 'origin', 'HEAD'], true);
     return { ok: true, output: stdout + stderr };
   } catch (err) {
     const e = err as { stdout?: string; stderr?: string; message?: string };

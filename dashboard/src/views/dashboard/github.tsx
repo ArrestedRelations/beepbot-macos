@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { GitBranch, GitCommit, RefreshCw, Download, Upload, CheckSquare, AlertCircle, CheckCircle2, Save, KeyRound, Trash2 } from 'lucide-react';
+import { GitBranch, GitCommit, RefreshCw, Download, Upload, CheckSquare, AlertCircle, CheckCircle2, Save, KeyRound, Trash2, FolderOpen } from 'lucide-react';
 import { api } from '../../lib/api';
 
 interface GitStatus {
@@ -69,6 +69,7 @@ export function GithubView() {
   const [commits, setCommits] = useState<GitCommitEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [commitMsg, setCommitMsg] = useState('');
+  const [projectPath, setProjectPath] = useState<string | null>(null);
 
   // Editable repo settings
   const [remoteUrl, setRemoteUrl] = useState('https://github.com/ArrestedRelations/beepbot-macos.git');
@@ -87,15 +88,17 @@ export function GithubView() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [s, logRes, patRes] = await Promise.all([
+      const [s, logRes, patRes, pathRes] = await Promise.all([
         api<GitStatus>('/github/status'),
         api<GitLogResponse>('/github/log'),
         api<PatStatusResponse>('/github/pat'),
+        api<{ ok: boolean; path: string }>('/system/project-path'),
       ]);
       setStatus(s);
       if (s.remoteUrl) setRemoteUrl(s.remoteUrl);
       if (logRes.ok && logRes.commits) setCommits(logRes.commits);
       if (patRes.ok) setPatConfigured(patRes.configured);
+      if (pathRes.ok) setProjectPath(pathRes.path);
     } catch {
       /* ignore */
     }
@@ -209,6 +212,24 @@ export function GithubView() {
 
   return (
     <div className="p-6 space-y-5 max-w-3xl">
+
+      {/* Project Path */}
+      {projectPath && (
+        <div
+          className="rounded-xl px-4 py-3 flex items-center gap-3"
+          style={{ background: 'var(--bb-bg-accent)', border: '1px solid var(--bb-border)' }}
+        >
+          <FolderOpen size={14} style={{ color: 'var(--bb-text-faint)', flexShrink: 0 }} />
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider font-semibold mb-0.5" style={{ color: 'var(--bb-text-faint)' }}>
+              Project Path
+            </div>
+            <div className="text-[13px] font-mono truncate" style={{ color: 'var(--bb-text)' }}>
+              {projectPath}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Repo Settings */}
       <div

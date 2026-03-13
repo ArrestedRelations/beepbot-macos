@@ -1,4 +1,6 @@
-import { HardDrive, Wifi, Shield, Clock, Server } from 'lucide-react';
+import { HardDrive, Wifi, Shield, Clock, Server, FolderOpen } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { api } from '../../lib/api';
 import type { SystemHealth } from '../../stores/dashboard-store';
 
 function formatUptime(ms: number): string {
@@ -12,6 +14,14 @@ function formatUptime(ms: number): string {
 }
 
 export function SystemHealthPanel({ health }: { health: SystemHealth }) {
+  const [projectPath, setProjectPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    api<{ ok: boolean; path: string }>('/system/project-path')
+      .then((res) => { if (res.ok) setProjectPath(res.path); })
+      .catch(() => { /* ignore */ });
+  }, []);
+
   const items = [
     {
       icon: Server,
@@ -62,6 +72,17 @@ export function SystemHealthPanel({ health }: { health: SystemHealth }) {
             </span>
           </div>
         ))}
+        {projectPath && (
+          <div className="flex items-start gap-2.5 pt-2" style={{ borderTop: '1px solid var(--bb-border)' }}>
+            <FolderOpen size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--bb-text-muted)' }} />
+            <div className="min-w-0">
+              <div className="text-[11px]" style={{ color: 'var(--bb-text-muted)' }}>Project Path</div>
+              <div className="text-[11px] font-mono truncate" style={{ color: 'var(--bb-text)', maxWidth: '18ch' }} title={projectPath}>
+                {projectPath}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
