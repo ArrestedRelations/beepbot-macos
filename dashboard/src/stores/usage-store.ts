@@ -32,6 +32,20 @@ const PRICING: Record<string, { input: number; output: number }> = {
   haiku: { input: 0.80, output: 4 },
 };
 
+export interface UsageTransaction {
+  id: number;
+  model: string;
+  provider: string;
+  tokens_in: number;
+  tokens_out: number;
+  slot: string | null;
+  conversation_id: string | null;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  duration_ms: number;
+  created_at: string;
+}
+
 export function estimateCost(model: string, tokensIn: number, tokensOut: number): number {
   const key = Object.keys(PRICING).find(k => model.toLowerCase().includes(k.toLowerCase())) ?? 'sonnet';
   const pricing = PRICING[key] ?? PRICING.sonnet;
@@ -43,9 +57,12 @@ interface UsageState {
   usageTotal: UsageTotals | null;
   usageByDay: UsageByDay[];
   usageByModel: UsageByModel[];
+  transactions: UsageTransaction[];
   loading: boolean;
+  transactionsLoading: boolean;
 
   fetchUsage: () => Promise<void>;
+  fetchTransactions: () => Promise<void>;
 }
 
 export const useUsageStore = create<UsageState>((set) => ({
@@ -53,7 +70,9 @@ export const useUsageStore = create<UsageState>((set) => ({
   usageTotal: null,
   usageByDay: [],
   usageByModel: [],
+  transactions: [],
   loading: false,
+  transactionsLoading: false,
 
   fetchUsage: async () => {
     set({ loading: true });
@@ -68,5 +87,15 @@ export const useUsageStore = create<UsageState>((set) => ({
       });
     } catch { /* ignore */ }
     set({ loading: false });
+  },
+
+  fetchTransactions: async () => {
+    set({ transactionsLoading: true });
+    try {
+      const res = await fetch(`${SIDECAR}/api/usage/transactions?limit=100`);
+      const data = await res.json();
+      set({ transactions: data.transactions ?? [] });
+    } catch { /* ignore */ }
+    set({ transactionsLoading: false });
   },
 }));

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useUsageStore, estimateCost } from '../../stores/usage-store';
+import { RefreshCw } from 'lucide-react';
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
@@ -11,10 +12,37 @@ function formatCost(dollars: number): string {
   return '$' + dollars.toFixed(4);
 }
 
-export function UsageView() {
-  const { usageToday, usageTotal, usageByDay, usageByModel, loading, fetchUsage } = useUsageStore();
+function formatDuration(ms: number): string {
+  if (ms < 1000) return ms + 'ms';
+  return (ms / 1000).toFixed(1) + 's';
+}
 
-  useEffect(() => { fetchUsage(); }, [fetchUsage]);
+function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+}
+
+function shortModel(model: string): string {
+  if (model.includes('sonnet')) return 'sonnet';
+  if (model.includes('opus')) return 'opus';
+  if (model.includes('haiku')) return 'haiku';
+  return model.length > 20 ? model.slice(0, 18) + '...' : model;
+}
+
+export function UsageView() {
+  const {
+    usageToday, usageTotal, usageByDay, usageByModel, loading, fetchUsage,
+    transactions, transactionsLoading, fetchTransactions,
+  } = useUsageStore();
+
+  useEffect(() => { fetchUsage(); fetchTransactions(); }, [fetchUsage, fetchTransactions]);
+
+  const totalTransactionTokens = transactions.reduce(
+    (sum, t) => sum + t.tokens_in + t.tokens_out, 0
+  );
 
   // Calculate max for bar chart scaling
   const maxDaily = Math.max(...usageByDay.map((d) => d.tokens_in + d.tokens_out), 1);
@@ -107,6 +135,85 @@ export function UsageView() {
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* Transactions table */}
+      <div className="bb-card">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className="bb-card-title">Recent Transactions</div>
+            <div className="text-[10px] mt-0.5" style={{ color: 'var(--bb-text-faint)' }}>
+              {transactions.length} transactions
+              {totalTransactionTokens > 0 && ` \u00b7 ${formatTokens(totalTransactionTokens)} total tokens`}
+            </div>
+          </div>
+          <button
+            onClick={fetchTransactions}
+            disabled={transactionsLoading}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors"
+            style={{
+              background: 'var(--bb-bg)',
+              color: 'var(--bb-text-muted)',
+              border: '1px solid var(--bb-border)',
+            }}
+          >
+            <RefreshCw size={12} className={transactionsLoading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
+
+        {transactionsLoading && transactions.length === 0 ? (
+          <p className="bb-empty">Loading transactions...</p>
+        ) : transactions.length === 0 ? (
+          <p className="bb-empty">No transactions yet</p>
+        ) : (
+          <div className="overflow-x-auto -mx-4 px-4">
+            <table className="w-full text-[11px]" style={{ color: 'var(--bb-text)' }}>
+              <thead>
+                <tr style={{ color: 'var(--bb-text-faint)', borderBottom: '1px solid var(--bb-border)' }}>
+                  <th className="text-left font-medium py-1.5 pr-3">Time</th>
+                  <th className="text-left font-medium py-1.5 pr-3">Model</th>
+                  <th className="text-left font-medium py-1.5 pr-3">Slot</th>
+                  <th className="text-right font-medium py-1.5 pr-3">In</th>
+                  <th className="text-right font-medium py-1.5 pr-3">Out</th>
+                  <th className="text-right font-medium py-1.5 pr-3">Total</th>
+                  <th className="text-right font-medium py-1.5">Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((tx) => (
+                  <tr
+                    key={tx.id}
+                    className="border-t"
+                    style={{ borderColor: 'var(--bb-border)' }}
+                  >
+                    <td className="py-1.5 pr-3 whitespace-nowrap font-mono" style={{ color: 'var(--bb-text-faint)' }}>
+                      {formatTimestamp(tx.created_at)}
+                    </td>
+                    <td className="py-1.5 pr-3 whitespace-nowrap font-medium" style={{ color: 'var(--bb-text-muted)' }}>
+                      {shortModel(tx.model || 'unknown')}
+                    </td>
+                    <td className="py-1.5 pr-3 whitespace-nowrap" style={{ color: 'var(--bb-text-faint)' }}>
+                      {tx.slot || '\u2014'}
+                    </td>
+                    <td className="py-1.5 pr-3 text-right font-mono">
+                      {formatTokens(tx.tokens_in)}
+                    </td>
+                    <td className="py-1.5 pr-3 text-right font-mono">
+                      {formatTokens(tx.tokens_out)}
+                    </td>
+                    <td className="py-1.5 pr-3 text-right font-mono font-medium" style={{ color: 'var(--bb-accent)' }}>
+                      {formatTokens(tx.tokens_in + tx.tokens_out)}
+                    </td>
+                    <td className="py-1.5 text-right font-mono" style={{ color: 'var(--bb-text-faint)' }}>
+                      {tx.duration_ms ? formatDuration(tx.duration_ms) : '\u2014'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
