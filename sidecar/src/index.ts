@@ -638,6 +638,22 @@ app.post('/api/usage/log', async (req) => {
   return { ok: true };
 });
 
+app.get('/api/usage/transactions', async (req) => {
+  const rawLimit = (req.query as { limit?: string }).limit;
+  const limit = Math.min(Math.max(parseInt(rawLimit || '100', 10) || 100, 1), 500);
+
+  const transactions = db.prepare(`
+    SELECT id, model, provider, tokens_in, tokens_out, slot,
+           conversation_id, cache_read_tokens, cache_write_tokens,
+           duration_ms, created_at
+    FROM api_usage_log
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(limit);
+
+  return { transactions, count: transactions.length };
+});
+
 // --- Dashboard Activity Feed ---
 app.get('/api/dashboard/activity', async () => {
   return activityLog.slice().reverse().slice(0, 50);
