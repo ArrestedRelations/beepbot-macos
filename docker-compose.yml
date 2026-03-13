@@ -1,0 +1,13 @@
+services:
+  beepbot:
+    build: .
+    ports:
+      - "3004:3004"
+    volumes:
+      - ~/.beepbot-v2:/data
+    environment:
+      - PORT=3004
+      - BEEPBOT_DATA_DIR=/data
+      # Set your API key here or use the dashboard to configure OAuth
+      # - ANTHROPIC_API_KEY=sk-ant-...
+    restart: unless-stopped

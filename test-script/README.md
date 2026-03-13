@@ -177,12 +177,39 @@ Every test follows **Plan-Do-Study-Act** cycles.
 test-script/
 ├── README.md              <- This file
 ├── test-cpi.mjs           <- CPI health check (one-shot or --watch)
-└── test-chat.mjs          <- Chat session & multi-turn test
+├── test-chat.mjs          <- Chat session & multi-turn test
+├── test-tokens.mjs        <- Token system verification
+└── test-ws-events.mjs     <- WebSocket event broadcast test
 ```
 
 ---
 
-## 8. Chat Session & Multi-turn Test
+## 8. Token System Verification
+
+Verifies that the token tracking pipeline works correctly end-to-end.
+
+```bash
+node test-script/test-tokens.mjs
+```
+
+### What it checks
+
+| Check | What it validates |
+|-------|------------------|
+| tokens_in > 0 | Input tokens recorded from SDK |
+| tokens_out > 0 | Output tokens recorded from SDK |
+| cache_read_tokens tracked | Cache read field present in DB |
+| cache_write_tokens tracked | Cache write field present in DB |
+| model recorded | Model name stored with usage entry |
+| slot is "chat" | Usage categorized correctly |
+| done.tokensIn matches DB | WebSocket event matches stored value |
+| done.tokensOut matches DB | WebSocket event matches stored value |
+| Turn 2 cache behavior | Cache tokens increase on second turn |
+| Aggregated stats | `/api/dashboard/stats` reflects usage |
+
+---
+
+## 9. Chat Session & Multi-turn Test
 
 Diagnoses two specific bugs:
 1. **Session not saved** — verifies conversations + messages are persisted in SQLite after a chat turn

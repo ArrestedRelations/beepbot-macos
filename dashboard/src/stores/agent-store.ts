@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-const SIDECAR = 'http://127.0.0.1:3004';
+const SERVER_URL = `${window.location.protocol}//${window.location.host}`;
 
 export interface AgentTool {
   name: string;
@@ -52,7 +52,7 @@ export const useAgentStore = create<AgentState>((set) => ({
 
   fetchTools: async () => {
     try {
-      const res = await fetch(`${SIDECAR}/api/agent/tools`);
+      const res = await fetch(`${SERVER_URL}/api/agent/tools`);
       const data = await res.json();
       set({ tools: Array.isArray(data) ? data : [] });
     } catch { /* ignore */ }
@@ -60,7 +60,7 @@ export const useAgentStore = create<AgentState>((set) => ({
 
   fetchWorkspaceFiles: async () => {
     try {
-      const res = await fetch(`${SIDECAR}/api/workspace`);
+      const res = await fetch(`${SERVER_URL}/api/workspace`);
       const data = await res.json();
       set({ workspaceFiles: Array.isArray(data) ? data : [] });
     } catch { /* ignore */ }
@@ -68,7 +68,7 @@ export const useAgentStore = create<AgentState>((set) => ({
 
   fetchMcpServers: async () => {
     try {
-      const res = await fetch(`${SIDECAR}/api/mcp/config`);
+      const res = await fetch(`${SERVER_URL}/api/mcp/config`);
       const data = await res.json();
       const servers = Object.entries(data.mcpServers || {}).map(([name, cfg]) => {
         const c = cfg as Record<string, unknown>;
@@ -84,7 +84,7 @@ export const useAgentStore = create<AgentState>((set) => ({
 
   fetchAgentState: async () => {
     try {
-      const res = await fetch(`${SIDECAR}/api/agent/state`);
+      const res = await fetch(`${SERVER_URL}/api/agent/state`);
       const data = await res.json();
       set({ agentStatus: data });
     } catch { /* ignore */ }

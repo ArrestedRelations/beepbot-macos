@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-const SIDECAR = 'http://127.0.0.1:3004';
+const SERVER_URL = `${window.location.protocol}//${window.location.host}`;
 
 export interface UsageByDay {
   day: string;
@@ -52,6 +52,38 @@ export function estimateCost(model: string, tokensIn: number, tokensOut: number)
   return (tokensIn / 1_000_000) * pricing.input + (tokensOut / 1_000_000) * pricing.output;
 }
 
+// --- Admin API types ---
+
+export interface AdminUsageByDay {
+  day: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  estimated_cost_cents: number;
+}
+
+export interface AdminUsageByModel {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  estimated_cost_cents: number;
+}
+
+export interface AdminCodeMetrics {
+  metric_date: string;
+  actor_email: string;
+  num_sessions: number;
+  commits: number;
+  pull_requests: number;
+  lines_added: number;
+  lines_removed: number;
+  tool_actions: Record<string, { accepted: number; rejected: number }>;
+  terminal_type: string;
+}
+
 interface UsageState {
   usageToday: UsageTotals | null;
   usageTotal: UsageTotals | null;
@@ -61,8 +93,20 @@ interface UsageState {
   loading: boolean;
   transactionsLoading: boolean;
 
+  // Admin API state
+  adminByDay: AdminUsageByDay[];
+  adminByModel: AdminUsageByModel[];
+  adminCodeMetrics: AdminCodeMetrics[];
+  adminLastRefresh: string | null;
+  adminAvailable: boolean;
+  adminLoading: boolean;
+  adminRefreshing: boolean;
+  adminError: string | null;
+
   fetchUsage: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
+  fetchAdminUsage: () => Promise<void>;
+  refreshAdminUsage: () => Promise<void>;
 }
 
 export const useUsageStore = create<UsageState>((set) => ({
@@ -74,10 +118,19 @@ export const useUsageStore = create<UsageState>((set) => ({
   loading: false,
   transactionsLoading: false,
 
+  adminByDay: [],
+  adminByModel: [],
+  adminCodeMetrics: [],
+  adminLastRefresh: null,
+  adminAvailable: true,
+  adminLoading: false,
+  adminRefreshing: false,
+  adminError: null,
+
   fetchUsage: async () => {
     set({ loading: true });
     try {
-      const res = await fetch(`${SIDECAR}/api/dashboard/stats`);
+      const res = await fetch(`${SERVER_URL}/api/dashboard/stats`);
       const data = await res.json();
       set({
         usageToday: data.usageToday,
@@ -92,10 +145,45 @@ export const useUsageStore = create<UsageState>((set) => ({
   fetchTransactions: async () => {
     set({ transactionsLoading: true });
     try {
-      const res = await fetch(`${SIDECAR}/api/usage/transactions?limit=100`);
+      const res = await fetch(`${SERVER_URL}/api/usage/transactions?limit=100`);
       const data = await res.json();
       set({ transactions: data.transactions ?? [] });
     } catch { /* ignore */ }
     set({ transactionsLoading: false });
+  },
+
+  fetchAdminUsage: async () => {
+    set({ adminLoading: true });
+    try {
+      const res = await fetch(`${SERVER_URL}/api/admin-usage`);
+      const data = await res.json();
+      set({
+        adminByDay: data.byDay ?? [],
+        adminByModel: data.byModel ?? [],
+        adminCodeMetrics: data.codeMetrics ?? [],
+        adminLastRefresh: data.lastRefresh ?? null,
+        adminAvailable: data.available !== false,
+      });
+    } catch { /* ignore */ }
+    set({ adminLoading: false });
+  },
+
+  refreshAdminUsage: async () => {
+    set({ adminRefreshing: true, adminError: null });
+    try {
+      const res = await fetch(`${SERVER_URL}/api/admin-usage/refresh`, { method: 'POST' });
+      const data = await res.json();
+      set({
+        adminByDay: data.byDay ?? [],
+        adminByModel: data.byModel ?? [],
+        adminCodeMetrics: data.codeMetrics ?? [],
+        adminLastRefresh: data.lastRefresh ?? null,
+        adminAvailable: data.available !== false,
+        adminError: data.error ?? null,
+      });
+    } catch (e) {
+      set({ adminError: e instanceof Error ? e.message : 'Failed to reach server' });
+    }
+    set({ adminRefreshing: false });
   },
 }));

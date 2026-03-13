@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Terminal, Square, Trash2, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 
-const SIDECAR = 'http://127.0.0.1:3004';
+const SERVER_URL = `${window.location.protocol}//${window.location.host}`;
 
 interface BackgroundTask {
   id: string;
@@ -125,7 +125,7 @@ export function BackgroundTasksPanel() {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const res = await fetch(`${SIDECAR}/api/tasks`);
+      const res = await fetch(`${SERVER_URL}/api/tasks`);
       const data = await res.json();
       setTasks(Array.isArray(data) ? data : []);
     } catch { /* ignore */ }
@@ -138,12 +138,12 @@ export function BackgroundTasksPanel() {
   }, [fetchTasks]);
 
   async function killTask(id: string) {
-    await fetch(`${SIDECAR}/api/tasks/${id}/kill`, { method: 'POST' }).catch(() => {});
+    await fetch(`${SERVER_URL}/api/tasks/${id}/kill`, { method: 'POST' }).catch(() => {});
     fetchTasks();
   }
 
   async function removeTask(id: string) {
-    await fetch(`${SIDECAR}/api/tasks/${id}`, { method: 'DELETE' }).catch(() => {});
+    await fetch(`${SERVER_URL}/api/tasks/${id}`, { method: 'DELETE' }).catch(() => {});
     fetchTasks();
   }
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-const SIDECAR = 'http://127.0.0.1:3004';
+const SERVER_URL = `${window.location.protocol}//${window.location.host}`;
 
 export interface SessionEntry {
   id: string;
@@ -50,7 +50,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
   fetchSessions: async () => {
     set({ loading: true });
     try {
-      const res = await fetch(`${SIDECAR}/api/conversations/stats`);
+      const res = await fetch(`${SERVER_URL}/api/conversations/stats`);
       const data = await res.json();
       set({ sessions: data.conversations ?? [] });
     } catch { /* ignore */ }
@@ -64,7 +64,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
 
   fetchMessages: async (id) => {
     try {
-      const res = await fetch(`${SIDECAR}/api/conversations/${id}/messages`);
+      const res = await fetch(`${SERVER_URL}/api/conversations/${id}/messages`);
       const data = await res.json();
       const messages = Array.isArray(data) ? data : (data.messages ?? []);
       set({ selectedMessages: messages });
@@ -73,7 +73,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
 
   deleteSession: async (id) => {
     try {
-      await fetch(`${SIDECAR}/api/conversations/${id}`, { method: 'DELETE' });
+      await fetch(`${SERVER_URL}/api/conversations/${id}`, { method: 'DELETE' });
       const state = get();
       if (state.selectedSessionId === id) {
         set({ selectedSessionId: null, selectedMessages: [] });

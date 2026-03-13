@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Key, Volume2, Shield, RefreshCw, Loader2, LogIn, LogOut, X, Cpu, Bot, GitBranch, GitCommit, GitPullRequest, GitMerge, Terminal, UploadCloud } from 'lucide-react';
+import { Key, Shield, RefreshCw, Loader2, LogIn, LogOut, X, Cpu, Bot, GitBranch, GitCommit, GitPullRequest, GitMerge, Terminal, UploadCloud } from 'lucide-react';
 import { useAppStore } from '../stores/app-store';
 
-const SIDECAR = 'http://127.0.0.1:3004';
+const SERVER_URL = `${window.location.protocol}//${window.location.host}`;
 
 interface SettingsViewProps {
   sendRaw: (data: Record<string, unknown>) => void;
@@ -16,10 +16,6 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
   const agentMode = useAppStore((s) => s.agentMode);
   const permissionMode = useAppStore((s) => s.permissionMode);
 
-  const [elevenLabsKey, setElevenLabsKey] = useState('');
-  const [elevenLabsStatus, setElevenLabsStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [voiceId, setVoiceId] = useState('');
-  const [voiceIdStatus, setVoiceIdStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [refreshing, setRefreshing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -39,7 +35,7 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
 
   useEffect(() => {
     if (authStatus === 'loading') {
-      fetch(`${SIDECAR}/api/auth/status`)
+      fetch(`${SERVER_URL}/api/auth/status`)
         .then(r => r.json())
         .then(data => {
           useAppStore.getState().setAuth(
@@ -50,61 +46,14 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
         .catch(() => useAppStore.getState().setAuth('unauthenticated', 'none'));
     }
 
-    fetch(`${SIDECAR}/api/keys`)
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          const el = data.find((k: { slug: string }) => k.slug === 'elevenlabs');
-          if (el?.masked) setElevenLabsKey(el.masked);
-        }
-      })
-      .catch(() => {});
-
-    fetch(`${SIDECAR}/api/settings/elevenlabs_voice_id`)
-      .then(r => r.json())
-      .then(data => { if (data.value) setVoiceId(data.value); })
-      .catch(() => {});
-
     void fetchGitStatus();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authStatus]);
 
-  async function saveElevenLabsKey() {
-    if (!elevenLabsKey.trim()) return;
-    setElevenLabsStatus('saving');
-    try {
-      await fetch(`${SIDECAR}/api/keys/elevenlabs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: elevenLabsKey.trim() }),
-      });
-      setElevenLabsStatus('saved');
-      setTimeout(() => setElevenLabsStatus('idle'), 2000);
-    } catch {
-      setElevenLabsStatus('idle');
-    }
-  }
-
-  async function saveVoiceId() {
-    if (!voiceId.trim()) return;
-    setVoiceIdStatus('saving');
-    try {
-      await fetch(`${SIDECAR}/api/settings/elevenlabs_voice_id`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: voiceId.trim() }),
-      });
-      setVoiceIdStatus('saved');
-      setTimeout(() => setVoiceIdStatus('idle'), 2000);
-    } catch {
-      setVoiceIdStatus('idle');
-    }
-  }
-
   async function refreshAuth() {
     setRefreshing(true);
     try {
-      const res = await fetch(`${SIDECAR}/api/auth/refresh`, { method: 'POST' });
+      const res = await fetch(`${SERVER_URL}/api/auth/refresh`, { method: 'POST' });
       const data = await res.json();
       useAppStore.getState().setAuth(
         data.authenticated ? 'authenticated' : 'unauthenticated',
@@ -117,14 +66,14 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
   async function handleLogout() {
     setLoggingOut(true);
     try {
-      await fetch(`${SIDECAR}/api/auth/logout`, { method: 'POST' });
+      await fetch(`${SERVER_URL}/api/auth/logout`, { method: 'POST' });
       useAppStore.getState().setAuth('unauthenticated', 'none');
     } catch { /* ignore */ }
     setLoggingOut(false);
   }
 
   function setMode(mode: string) {
-    fetch(`${SIDECAR}/api/agent/mode`, {
+    fetch(`${SERVER_URL}/api/agent/mode`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode }),
@@ -132,7 +81,7 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
   }
 
   function setPermMode(mode: string) {
-    fetch(`${SIDECAR}/api/agent/permission-mode`, {
+    fetch(`${SERVER_URL}/api/agent/permission-mode`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode }),
@@ -142,12 +91,12 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
   async function fetchGitStatus() {
     setGitStatusLoading(true);
     try {
-      const res = await fetch(`${SIDECAR}/api/github/status`);
+      const res = await fetch(`${SERVER_URL}/api/github/status`);
       const data = await res.json() as GitStatus & { ok: boolean; error?: string };
       if (data.ok) setGitStatus(data);
       else setGitOutput(`Error: ${data.error || 'Unknown error'}`);
     } catch {
-      setGitOutput('Failed to connect to sidecar');
+      setGitOutput('Failed to connect to server');
     }
     setGitStatusLoading(false);
   }
@@ -156,7 +105,7 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
     setGitLoading(action);
     setGitOutput('');
     try {
-      const res = await fetch(`${SIDECAR}/api/github/${action}`, {
+      const res = await fetch(`${SERVER_URL}/api/github/${action}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
@@ -174,7 +123,7 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
     setGitLoading('remote');
     setGitOutput('');
     try {
-      const res = await fetch(`${SIDECAR}/api/github/remote`, {
+      const res = await fetch(`${SERVER_URL}/api/github/remote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: githubRepoUrl.trim() }),
@@ -190,8 +139,8 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50 bg-zinc-950 sticky top-0 z-10" data-tauri-drag-region>
-        <span className="text-sm font-semibold text-zinc-300 select-none" data-tauri-drag-region>Settings</span>
+      <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50 bg-zinc-950 sticky top-0 z-10">
+        <span className="text-sm font-semibold text-zinc-300 select-none">Settings</span>
         <div className="w-7" />
       </header>
 
@@ -226,11 +175,13 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
                   <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-emerald-300">
-                      {authMethod === 'oauth' ? 'Logged in via Claude Code' : 'API key configured'}
+                      {authMethod === 'oauth' ? 'Logged in via Claude Code' : authMethod === 'sdk' ? 'Authenticated via Claude SDK' : 'API key configured'}
                     </p>
                     <p className="text-xs text-zinc-500 mt-0.5">
                       {authMethod === 'oauth'
                         ? 'Using OAuth token from macOS Keychain'
+                        : authMethod === 'sdk'
+                        ? 'Agent runtime is connected and authenticated'
                         : 'Using ANTHROPIC_API_KEY environment variable'}
                     </p>
                   </div>
@@ -301,18 +252,18 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                         : mode === 'ask'
                           ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                          : 'bg-zinc-700/50 border-zinc-600/30 text-zinc-400'
+                          : 'bg-red-500/10 border-red-500/30 text-red-400'
                       : 'border-zinc-700/50 text-zinc-500 hover:text-zinc-300'
                   }`}
                 >
-                  {mode === 'autonomous' ? 'Auto' : mode}
+                  {mode === 'autonomous' ? 'Running' : mode === 'ask' ? 'Paused' : 'Stopped'}
                 </button>
               ))}
             </div>
             <p className="text-[10px] text-zinc-500 mt-2">
-              {agentMode === 'autonomous' ? 'Full agent — executes actions autonomously'
-                : agentMode === 'ask' ? 'Brainstorm only — no file edits or commands'
-                : 'Agent disabled — no responses'}
+              {agentMode === 'autonomous' ? 'Running — executes actions autonomously'
+                : agentMode === 'ask' ? 'Paused — no operations execute'
+                : 'Stopped — agent completely disabled'}
             </p>
           </div>
         </section>
@@ -325,11 +276,11 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
           </div>
           <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-4">
             <div className="flex gap-2">
-              {(['default', 'acceptEdits', 'bypassPermissions'] as const).map((mode) => {
+              {(['bypassPermissions', 'acceptEdits', 'plan'] as const).map((mode) => {
                 const labels: Record<string, string> = {
-                  default: 'Default',
-                  acceptEdits: 'Accept Edits',
-                  bypassPermissions: 'Full Auto',
+                  bypassPermissions: 'Autonomous',
+                  acceptEdits: 'Supervised',
+                  plan: 'Plan',
                 };
                 return (
                   <button
@@ -337,11 +288,11 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
                     onClick={() => setPermMode(mode)}
                     className={`flex-1 text-xs py-2 rounded-lg border transition-colors ${
                       permissionMode === mode
-                        ? mode === 'default'
-                          ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                        ? mode === 'bypassPermissions'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                           : mode === 'acceptEdits'
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                            : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                            : 'bg-blue-500/10 border-blue-500/30 text-blue-400'
                         : 'border-zinc-700/50 text-zinc-500 hover:text-zinc-300'
                     }`}
                   >
@@ -349,56 +300,6 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
                   </button>
                 );
               })}
-            </div>
-          </div>
-        </section>
-
-        {/* Voice Settings */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <Volume2 size={14} className="text-zinc-500" />
-            <h3 className="text-sm font-medium text-zinc-300">Voice (ElevenLabs)</h3>
-          </div>
-          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-4 space-y-3">
-            <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">API Key</label>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={elevenLabsKey}
-                  onChange={(e) => setElevenLabsKey(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && saveElevenLabsKey()}
-                  placeholder="xi-..."
-                  className="flex-1 bg-zinc-800 border border-zinc-700/50 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
-                />
-                <button
-                  onClick={saveElevenLabsKey}
-                  disabled={!elevenLabsKey.trim() || elevenLabsStatus === 'saving'}
-                  className="px-3 py-2 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 transition-colors"
-                >
-                  {elevenLabsStatus === 'saved' ? 'Saved' : 'Save'}
-                </button>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs text-zinc-500">Voice ID</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={voiceId}
-                  onChange={(e) => setVoiceId(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && saveVoiceId()}
-                  placeholder="Voice ID from ElevenLabs"
-                  className="flex-1 bg-zinc-800 border border-zinc-700/50 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
-                />
-                <button
-                  onClick={saveVoiceId}
-                  disabled={!voiceId.trim() || voiceIdStatus === 'saving'}
-                  className="px-3 py-2 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 transition-colors"
-                >
-                  {voiceIdStatus === 'saved' ? 'Saved' : 'Save'}
-                </button>
-              </div>
             </div>
           </div>
         </section>
@@ -418,7 +319,7 @@ export function SettingsViewPage({ sendRaw }: SettingsViewProps) {
               <button
                 onClick={() => {
                   const next = !sandboxEnabled;
-                  fetch(`${SIDECAR}/api/agent/sandbox`, {
+                  fetch(`${SERVER_URL}/api/agent/sandbox`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ enabled: next }),

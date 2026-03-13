@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FileText, ChevronRight, Save, ArrowLeft } from 'lucide-react';
 import type { MemoryFile } from '../../stores/dashboard-store';
 
-const SIDECAR = 'http://127.0.0.1:3004';
+const SERVER_URL = `${window.location.protocol}//${window.location.host}`;
 
 function formatSize(bytes: number): string {
   if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -16,7 +16,7 @@ export function MemoryViewer({ files }: { files: MemoryFile[] }) {
 
   async function loadFile(filename: string) {
     try {
-      const res = await fetch(`${SIDECAR}/api/memory/${encodeURIComponent(filename)}`);
+      const res = await fetch(`${SERVER_URL}/api/memory/${encodeURIComponent(filename)}`);
       const data = await res.json();
       setContent(data.content || '');
       setSelectedFile(filename);
@@ -27,7 +27,7 @@ export function MemoryViewer({ files }: { files: MemoryFile[] }) {
     if (!selectedFile) return;
     setSaving(true);
     try {
-      await fetch(`${SIDECAR}/api/memory/${encodeURIComponent(selectedFile)}`, {
+      await fetch(`${SERVER_URL}/api/memory/${encodeURIComponent(selectedFile)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),

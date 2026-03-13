@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-const SIDECAR = 'http://127.0.0.1:3004';
+const SERVER_URL = `${window.location.protocol}//${window.location.host}`;
 
 export interface Skill {
   name: string;
@@ -23,7 +23,7 @@ export const useSkillsStore = create<SkillsState>((set) => ({
   fetchSkills: async () => {
     set({ loading: true });
     try {
-      const res = await fetch(`${SIDECAR}/api/skills`);
+      const res = await fetch(`${SERVER_URL}/api/skills`);
       const data = await res.json();
       set({ skills: Array.isArray(data) ? data : [] });
     } catch { /* ignore */ }

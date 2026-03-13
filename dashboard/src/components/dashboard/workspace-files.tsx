@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FileText, ChevronRight, Save, Plus, ArrowLeft } from 'lucide-react';
 
-const SIDECAR = 'http://127.0.0.1:3004';
+const SERVER_URL = `${window.location.protocol}//${window.location.host}`;
 
 interface WorkspaceFile {
   name: string;
@@ -19,7 +19,7 @@ export function WorkspaceFilesPanel() {
 
   const fetchFiles = useCallback(async () => {
     try {
-      const res = await fetch(`${SIDECAR}/api/workspace`);
+      const res = await fetch(`${SERVER_URL}/api/workspace`);
       const data = await res.json();
       setFiles(Array.isArray(data) ? data : []);
     } catch { /* ignore */ }
@@ -29,7 +29,7 @@ export function WorkspaceFilesPanel() {
 
   async function loadFile(filename: string) {
     try {
-      const res = await fetch(`${SIDECAR}/api/workspace/${encodeURIComponent(filename)}`);
+      const res = await fetch(`${SERVER_URL}/api/workspace/${encodeURIComponent(filename)}`);
       const data = await res.json();
       setContent(data.content || '');
       setSelectedFile(filename);
@@ -40,7 +40,7 @@ export function WorkspaceFilesPanel() {
     if (!selectedFile) return;
     setSaving(true);
     try {
-      await fetch(`${SIDECAR}/api/workspace/${encodeURIComponent(selectedFile)}`, {
+      await fetch(`${SERVER_URL}/api/workspace/${encodeURIComponent(selectedFile)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
@@ -52,7 +52,7 @@ export function WorkspaceFilesPanel() {
 
   async function createFile(filename: string) {
     try {
-      await fetch(`${SIDECAR}/api/workspace/${encodeURIComponent(filename)}`, {
+      await fetch(`${SERVER_URL}/api/workspace/${encodeURIComponent(filename)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: `# ${filename.replace('.md', '')}\n\n` }),

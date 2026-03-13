@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { DashboardShell } from './views/dashboard-shell';
 import { useAppStore } from './stores/app-store';
 
-const WS_URL = 'ws://127.0.0.1:3004/ws';
+const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
 export default function App() {
   const wsRef = useRef<WebSocket | null>(null);
@@ -33,7 +33,7 @@ export default function App() {
               store.setAgentMode(msg.mode as 'autonomous' | 'ask' | 'stop');
               break;
             case 'permission_mode':
-              store.setPermissionMode(msg.mode as 'default' | 'acceptEdits' | 'bypassPermissions');
+              store.setPermissionMode((msg.mode === 'default' ? 'bypassPermissions' : msg.mode) as 'bypassPermissions' | 'acceptEdits' | 'plan');
               break;
             case 'sandbox':
               store.setSandboxEnabled(msg.enabled as boolean);
@@ -68,7 +68,7 @@ export default function App() {
     connect();
 
     // Fetch initial agent state
-    fetch('http://127.0.0.1:3004/api/agent/state')
+    fetch(`${window.location.protocol}//${window.location.host}/api/agent/state`)
       .then(r => r.json())
       .then(data => {
         const store = useAppStore.getState();
@@ -79,7 +79,7 @@ export default function App() {
       .catch(() => {});
 
     // Fetch auth status
-    fetch('http://127.0.0.1:3004/api/auth/status')
+    fetch(`${window.location.protocol}//${window.location.host}/api/auth/status`)
       .then(r => r.json())
       .then(data => {
         useAppStore.getState().setAuth(

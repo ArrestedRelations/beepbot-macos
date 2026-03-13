@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-const SIDECAR = 'http://127.0.0.1:3004';
+const SERVER_URL = `${window.location.protocol}//${window.location.host}`;
 
 export interface LogEntry {
   id: string;
@@ -32,7 +32,7 @@ export const useLogsStore = create<LogsState>((set, get) => ({
   fetchLogs: async () => {
     set({ loading: true });
     try {
-      const res = await fetch(`${SIDECAR}/api/logs?limit=200`);
+      const res = await fetch(`${SERVER_URL}/api/logs?limit=200`);
       const data = await res.json();
       set({ logs: Array.isArray(data) ? data.reverse() : [] });
     } catch { /* ignore */ }
